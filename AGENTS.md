@@ -15,11 +15,12 @@ bun run test          # bun test
 
 - Effect v4 (effect-smol): `ServiceMap.Service`, `Effect.fn`, `Schema.TaggedErrorClass`
 - Four services: `StoreService` (task CRUD at `~/.agentd/tasks/`), `LaunchdService` (plist gen + launchctl), `AgentPlatformService` (agent invocation), `Schedule` (pure parsing module)
+- Context capture in `src/context.ts` — `captureContext(cwd)` grabs git/gh metadata at creation; `buildPromptWithContext` injects `<context>` block into prompt at invocation
 - Shared path resolution in `src/paths.ts` — Config-based HOME reading, all `.agentd` paths derived from one place
 - Commands are `Command.make` from `effect/unstable/cli`, composed in `src/commands/index.ts`
 - Errors use structured `code` fields (required) — match with `e.code`, not string parsing
 - `main.ts` wraps CLI in custom error handler: app errors → stderr with recovery hints
-- `agentd ls --json` / `-j` outputs machine-readable JSON
+- `agentd ls --json` / `-j` outputs machine-readable JSON (includes `context` field)
 
 ## Gotchas
 
@@ -38,6 +39,10 @@ bun run test          # bun test
 - `Bun.spawn` needs mutable `Array<string>`, not `ReadonlyArray` — watch for type errors
 - `generatePlist` and `escapeXml` are `@internal` exports for testability
 - Provider args extracted into `claudeArgs`/`codexArgs` — add new providers in `src/services/AgentPlatform.ts`
+- `TaskContext` uses `Schema.optional` fields — absent keys in JSON decode fine, no migration needed
+- `Schema.OptionFromUndefinedOr` fails when JSON key is absent (not just `undefined`) — use `Schema.optional` for JSON-persisted optional fields instead
+- Context capture runs git/gh in parallel; all commands fail silently (non-git dirs → `undefined`)
+- Issue number parsed from branch name pattern `fix/123-thing` — requires 2+ digit number
 
 ## For Related Docs
 

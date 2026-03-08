@@ -8,6 +8,22 @@ import { ScheduleSchema, type Schedule } from "./Schedule.js";
 
 export type Provider = "claude" | "codex";
 
+const OptionalString = Schema.optional(Schema.String);
+const OptionalNumber = Schema.optional(Schema.Number);
+
+export const TaskContext = Schema.Struct({
+  gitBranch: OptionalString,
+  gitRemoteUrl: OptionalString,
+  gitRepo: OptionalString,
+  gitCommit: OptionalString,
+  gitDefaultBranch: OptionalString,
+  prNumber: OptionalNumber,
+  prUrl: OptionalString,
+  issueNumber: OptionalNumber,
+});
+
+export type TaskContext = typeof TaskContext.Type;
+
 export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   id: Schema.String,
   prompt: Schema.String,
@@ -18,6 +34,7 @@ export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   status: Schema.Literals(["active", "completed", "failed"]),
   lastRun: Schema.optional(Schema.String),
   runCount: Schema.Number,
+  context: Schema.optional(TaskContext),
 }) {}
 
 export type TaskInput = {
@@ -26,6 +43,7 @@ export type TaskInput = {
   readonly provider: Provider;
   readonly schedule: Schedule;
   readonly cwd: string;
+  readonly context?: TaskContext | undefined;
 };
 
 const VALID_ID = /^[a-zA-Z0-9_-]+$/;

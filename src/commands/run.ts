@@ -3,6 +3,7 @@ import { Argument, Command } from "effect/unstable/cli";
 import { StoreService } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
 import { AgentPlatformService } from "../services/AgentPlatform.js";
+import { buildPromptWithContext } from "../context.js";
 
 export const run = Command.make("run", { id: Argument.string("id") }, (config) =>
   Effect.gen(function* () {
@@ -11,8 +12,9 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     const launchd = yield* LaunchdService;
     const task = yield* store.get(config.id);
 
+    const prompt = buildPromptWithContext(task.prompt, task.cwd, task.context);
     yield* Console.error(`[agentd] Running task ${task.id}: ${task.prompt}`);
-    yield* agent.invoke(task.provider, task.prompt, task.cwd);
+    yield* agent.invoke(task.provider, prompt, task.cwd);
 
     const isOneshot = task.schedule._tag === "Oneshot";
     const status = isOneshot ? "completed" : task.status;

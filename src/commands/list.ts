@@ -25,6 +25,7 @@ export const list = Command.make(
           createdAt: t.createdAt,
           lastRun: t.lastRun,
           runCount: t.runCount,
+          context: t.context,
         }));
         // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
         yield* Console.log(JSON.stringify(out, null, 2));

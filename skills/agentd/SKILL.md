@@ -61,9 +61,25 @@ Natural language (preferred):
 | `-p claude` (default) | `claude -p <prompt> --dangerously-skip-permissions --model sonnet` |
 | `-p codex` | `codex exec -C <cwd> --dangerously-bypass-approvals-and-sandbox` |
 
+## Context Metadata
+
+At creation time, agentd captures environmental context (best-effort, all optional):
+
+| Field | Source |
+| ----- | ------ |
+| `gitBranch` | `git rev-parse --abbrev-ref HEAD` |
+| `gitRemoteUrl` | `git remote get-url origin` |
+| `gitRepo` | Parsed from remote URL |
+| `gitCommit` | `git rev-parse --short HEAD` |
+| `gitDefaultBranch` | `git rev-parse --abbrev-ref origin/HEAD` |
+| `prNumber` / `prUrl` | `gh pr view --json number,url` |
+| `issueNumber` | Parsed from branch name (e.g. `fix/123-thing`) |
+
+At invocation, context is injected as a `<context>` block prepended to the prompt. Enables natural prompts like `"babysit this pr"`.
+
 ## Management
 
-- Tasks stored at `~/.agentd/tasks/{id}.json`
+- Tasks stored at `~/.agentd/tasks/{id}.json` (includes `context` field)
 - Plists at `~/Library/LaunchAgents/com.cvr.agentd-{id}.plist`
 - `agentd rm <id>` unloads plist, deletes task file, and cleans up log file
 - Oneshot tasks auto-complete after first run
@@ -84,6 +100,7 @@ src/
   main.ts                    # CLI entry + layer wiring
   paths.ts                   # shared path resolution (HOME, dirs)
   errors/index.ts            # AgentdError (tagged)
+  context.ts                 # git/gh context capture + prompt injection
   output.ts                  # NO_COLOR + TTY detection
   commands/
     index.ts                 # root (= add) + subcommands

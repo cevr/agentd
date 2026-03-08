@@ -4,6 +4,7 @@ import { AgentdError } from "../errors/index.js";
 import { StoreService } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
 import * as Schedule from "../services/Schedule.js";
+import { captureContext } from "../context.js";
 import { list } from "./list.js";
 import { remove } from "./remove.js";
 import { run } from "./run.js";
@@ -40,11 +41,12 @@ const root = Command.make(
       const schedule = yield* Schedule.parse(scheduleStr);
       const id = yield* Effect.sync(() => crypto.randomUUID().slice(0, 8));
       const cwd = yield* Effect.sync(() => process.cwd());
+      const context = yield* captureContext(cwd);
 
       const store = yield* StoreService;
       const launchd = yield* LaunchdService;
 
-      const task = yield* store.add({ id, prompt, provider, schedule, cwd });
+      const task = yield* store.add({ id, prompt, provider, schedule, cwd, context });
       yield* launchd.install(task);
 
       yield* Console.log(`Scheduled task ${id}`);
@@ -52,6 +54,11 @@ const root = Command.make(
       yield* Console.log(`  Provider: ${provider}`);
       yield* Console.log(`  Schedule: ${Schedule.describe(schedule)}`);
       yield* Console.log(`  CWD:      ${cwd}`);
+      if (context !== undefined) {
+        if (context.gitBranch !== undefined) yield* Console.log(`  Branch:   ${context.gitBranch}`);
+        if (context.prNumber !== undefined)
+          yield* Console.log(`  PR:       #${String(context.prNumber)}`);
+      }
     }),
 ).pipe(
   Command.withDescription("Schedule AI agent tasks via macOS launchd"),
