@@ -22,7 +22,7 @@
           "importFromBarrel": "warning",
           "instanceOfSchema": "error",
           "missedPipeableOpportunity": "suggestion",
-          "nodeBuiltinImport": "warning",
+          "nodeBuiltinImport": "error",
           "serviceNotAsClass": "warning",
           "strictBooleanExpressions": "error",
           "strictEffectProvide": "error"
