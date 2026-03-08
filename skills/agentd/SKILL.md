@@ -1,0 +1,103 @@
+---
+name: agentd
+description: AI agent task scheduler via macOS launchd. Use when scheduling agent tasks, managing scheduled jobs, viewing task logs, or any interaction with the `~/.agentd/` directory. Triggers on "agentd", "schedule agent", "schedule task", "agent scheduler", "launchd agent".
+---
+
+# agentd
+
+Schedule AI agent tasks (Claude, Codex) via macOS launchd plist files. Each task becomes a plist that fires `agentd run <id>`, which invokes the agent in the original working directory.
+
+## Navigation
+
+```
+What do you need?
+├─ Schedule a task           → §Scheduling
+├─ Manage existing tasks     → §Management
+├─ View logs                 → §Logs
+├─ Understand internals      → §Architecture
+└─ Troubleshooting           → §Gotchas
+```
+
+## Quick Reference
+
+| Command | What it does |
+| ------- | ------------ |
+| `agentd "<prompt>" -s "<schedule>"` | Schedule task (default: claude) |
+| `agentd "<prompt>" -s "<schedule>" -p codex` | Schedule with specific provider |
+| `agentd ls` | List all tasks |
+| `agentd rm <id>` | Remove task + unload plist |
+| `agentd run <id>` | Execute task (called by launchd) |
+| `agentd logs` | List available logs |
+| `agentd logs <id>` | View task log |
+| `agentd logs <id> -f` | Tail task log |
+
+## Scheduling
+
+### Schedule Formats
+
+Natural language (preferred):
+
+| Pattern | Type | Example |
+| ------- | ---- | ------- |
+| `in N minutes/hours/days` | Oneshot | `in 30 minutes` |
+| `tomorrow at HH:mm[am\|pm]` | Oneshot | `tomorrow at 9am` |
+| `every day at HH:mm[am\|pm]` | Recurring | `every day at 9:00` |
+| `every weekday at HH:mm` | Recurring | `every weekday at 9am` |
+| `every {day} at HH:mm` | Recurring | `every monday at 10:30am` |
+
+5-field cron fallback: `min hour dom month dow`
+
+| Cron | Meaning |
+| ---- | ------- |
+| `0 9 * * 1-5` | Weekdays at 9am |
+| `*/30 * * * *` | Every 30 min |
+| `0 0 1 * *` | First of month midnight |
+
+### Providers
+
+| Flag | CLI invoked |
+| ---- | ----------- |
+| `-p claude` (default) | `claude -p <prompt> --dangerously-skip-permissions --model sonnet` |
+| `-p codex` | `codex exec -C <cwd> --dangerously-bypass-approvals-and-sandbox` |
+
+## Management
+
+- Tasks stored at `~/.agentd/tasks/{id}.json`
+- Plists at `~/Library/LaunchAgents/com.cvr.agentd-{id}.plist`
+- `agentd rm <id>` unloads plist then deletes task file
+- Oneshot tasks auto-complete after first run
+
+## Logs
+
+- Log files at `~/.agentd/logs/{id}.log`
+- Both stdout and stderr go to the same log file
+- `agentd logs` lists all available log files
+- `agentd logs <id> -f` tails in real-time
+
+## Architecture
+
+```
+src/
+  main.ts                    # CLI entry + layer wiring
+  errors/index.ts            # AgentdError (tagged)
+  commands/
+    index.ts                 # root (= add) + subcommands
+    list.ts                  # ls
+    remove.ts                # rm
+    run.ts                   # run (internal, fired by plist)
+    logs.ts                  # logs
+  services/
+    Schedule.ts              # pure NL/cron parser
+    Store.ts                 # task CRUD (~/.agentd/tasks/)
+    Launchd.ts               # plist gen + launchctl
+    AgentPlatform.ts         # agent invocation
+```
+
+## Gotchas
+
+- `agentd` binary conflicts with nothing, but ensure `~/.bun/bin` is in PATH for launchd
+- Plist `EnvironmentVariables` includes HOME and PATH — launchd runs with minimal env
+- `Schedule` is a pure module, not a `ServiceMap.Service`
+- `Task.schedule` stored as `Schema.Unknown` — cast to `Schedule` type at usage sites
+- Oneshot plists fire once via `StartCalendarInterval` — launchd won't repeat them
+- Weekday range `1-5` expands to 5 separate `StartCalendarInterval` entries
