@@ -50,9 +50,9 @@ const parseTime = (
   ampm: string | undefined,
 ): { hour: number; minute: number } => {
   let hour = parseInt(hourStr, 10);
-  const minute = minuteStr ? parseInt(minuteStr, 10) : 0;
+  const minute = minuteStr !== undefined ? parseInt(minuteStr, 10) : 0;
 
-  if (ampm) {
+  if (ampm !== undefined) {
     const lower = ampm.toLowerCase();
     if (lower === "pm" && hour !== 12) hour += 12;
     if (lower === "am" && hour === 12) hour = 0;
@@ -78,7 +78,7 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
   const result = yield* Effect.sync((): Option.Option<Schedule> => {
     // "in N minutes/hours/days"
     const inMatch = trimmed.match(IN_PATTERN);
-    if (inMatch) {
+    if (inMatch !== null) {
       const amount = parseInt(inMatch[1]!, 10);
       const unit = inMatch[2]!.toLowerCase();
       const at = new Date(now.getTime());
@@ -90,7 +90,7 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
 
     // "every day at HH:mm[am|pm]"
     const everyDayMatch = trimmed.match(EVERY_DAY_AT_PATTERN);
-    if (everyDayMatch) {
+    if (everyDayMatch !== null) {
       const { hour, minute } = parseTime(everyDayMatch[1]!, everyDayMatch[2], everyDayMatch[3]);
       return Option.some({
         _tag: "Cron" as const,
@@ -105,7 +105,7 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
 
     // "every weekday at HH:mm[am|pm]"
     const weekdayMatch = trimmed.match(EVERY_WEEKDAY_AT_PATTERN);
-    if (weekdayMatch) {
+    if (weekdayMatch !== null) {
       const { hour, minute } = parseTime(weekdayMatch[1]!, weekdayMatch[2], weekdayMatch[3]);
       return Option.some({
         _tag: "Cron" as const,
@@ -120,7 +120,7 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
 
     // "every monday at ..."
     const namedDayMatch = trimmed.match(EVERY_NAMED_DAY_PATTERN);
-    if (namedDayMatch) {
+    if (namedDayMatch !== null) {
       const dow = DAY_NAMES[namedDayMatch[1]!.toLowerCase()];
       const { hour, minute } = parseTime(namedDayMatch[2]!, namedDayMatch[3], namedDayMatch[4]);
       if (dow !== undefined) {
@@ -138,7 +138,7 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
 
     // "tomorrow at HH:mm[am|pm]"
     const tomorrowMatch = trimmed.match(TOMORROW_AT_PATTERN);
-    if (tomorrowMatch) {
+    if (tomorrowMatch !== null) {
       const { hour, minute } = parseTime(tomorrowMatch[1]!, tomorrowMatch[2], tomorrowMatch[3]);
       const at = new Date(now.getTime());
       at.setDate(at.getDate() + 1);
@@ -148,7 +148,7 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
 
     // 5-field cron
     const cronMatch = trimmed.match(CRON_PATTERN);
-    if (cronMatch) {
+    if (cronMatch !== null) {
       return Option.some({
         _tag: "Cron" as const,
         minute: parseNumericField(cronMatch[1]!),

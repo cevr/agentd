@@ -12,7 +12,23 @@
     "sourceMap": true,
     "noEmit": true,
     "isolatedModules": true,
-    "plugins": [{ "name": "@effect/language-service" }],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "anyUnknownInErrorContext": "error",
+          "deterministicKeys": "error",
+          "extendsNativeError": "error",
+          "importFromBarrel": "warning",
+          "instanceOfSchema": "error",
+          "missedPipeableOpportunity": "suggestion",
+          "nodeBuiltinImport": "warning",
+          "serviceNotAsClass": "warning",
+          "strictBooleanExpressions": "error",
+          "strictEffectProvide": "error"
+        }
+      }
+    ],
     "types": ["bun"]
   },
   "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"]

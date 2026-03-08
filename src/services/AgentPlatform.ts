@@ -12,7 +12,7 @@ class AgentPlatformService extends ServiceMap.Service<
     ) => Effect.Effect<void, AgentdError>;
     readonly isExecutable: (provider: Provider) => Effect.Effect<boolean, AgentdError>;
   }
->()("@cvr/agentd/services/AgentPlatformService") {
+>()("@cvr/agentd/services/AgentPlatform/AgentPlatformService") {
   static layer = Layer.succeed(AgentPlatformService, {
     invoke: (provider, prompt, cwd) =>
       Effect.tryPromise({

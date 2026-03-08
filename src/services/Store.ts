@@ -43,7 +43,7 @@ class StoreService extends ServiceMap.Service<
     ) => Effect.Effect<Task, AgentdError>;
     readonly remove: (id: string) => Effect.Effect<void, AgentdError>;
   }
->()("@cvr/agentd/services/StoreService") {
+>()("@cvr/agentd/services/Store/StoreService") {
   static layer = Layer.effect(
     StoreService,
     Effect.gen(function* () {

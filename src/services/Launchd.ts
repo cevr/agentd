@@ -74,7 +74,7 @@ class LaunchdService extends ServiceMap.Service<
     readonly uninstall: (id: string) => Effect.Effect<void, AgentdError>;
     readonly isLoaded: (id: string) => Effect.Effect<boolean, AgentdError>;
   }
->()("@cvr/agentd/services/LaunchdService") {
+>()("@cvr/agentd/services/Launchd/LaunchdService") {
   static layer = Layer.effect(
     LaunchdService,
     Effect.gen(function* () {
