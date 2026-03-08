@@ -2,6 +2,7 @@ import { Console, Effect } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { StoreService } from "../services/Store.js";
 import { describe } from "../services/Schedule.js";
+import { isColorEnabled } from "../output.js";
 
 export const list = Command.make(
   "ls",
@@ -38,8 +39,7 @@ export const list = Command.make(
       yield* Console.log(
         `${"ID".padEnd(10)} ${"Provider".padEnd(10)} ${"Schedule".padEnd(30)} ${"Status".padEnd(10)} Prompt`,
       );
-      const isTTY = process.stdout.isTTY;
-      if (isTTY) yield* Console.log("─".repeat(90));
+      if (isColorEnabled) yield* Console.log("─".repeat(90));
 
       for (const task of tasks) {
         const scheduleDesc = describe(task.schedule);

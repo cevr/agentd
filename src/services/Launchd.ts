@@ -39,7 +39,8 @@ const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): 
   return `  <key>StartCalendarInterval</key>\n  <array>\n${items}\n  </array>`;
 };
 
-const generatePlist = (
+/** @internal */
+export const generatePlist = (
   task: Task,
   binPath: string,
   home: string,
@@ -133,6 +134,24 @@ class LaunchdService extends ServiceMap.Service<
         });
       });
 
+      const launchctlUnload = Effect.fn("LaunchdService.launchctlUnload")(function* (
+        plist: string,
+      ) {
+        return yield* Effect.tryPromise({
+          try: async () => {
+            const proc = Bun.spawn(["launchctl", "unload", plist], {
+              stdout: "ignore",
+              stderr: "pipe",
+            });
+            const code = await proc.exited;
+            const stderr = await new Response(proc.stderr).text();
+            return { code, stderr: stderr.trim() };
+          },
+          catch: () =>
+            new AgentdError({ message: "Cannot run launchctl unload", code: "LAUNCHD_FAILED" }),
+        });
+      });
+
       const install = Effect.fn("LaunchdService.install")(function* (task: Task) {
         const binPath = yield* resolveBinPath();
         const plist = plistPath(task.id);
@@ -148,22 +167,13 @@ class LaunchdService extends ServiceMap.Service<
           ),
         );
 
+        // Read existing plist content for rollback if load fails
+        const oldContent = yield* fs.readFileString(plist).pipe(Effect.option);
+
         const loaded = yield* isLoaded(task.id);
         if (loaded) {
-          yield* Effect.tryPromise({
-            try: async () => {
-              const proc = Bun.spawn(["launchctl", "unload", plist], {
-                stdout: "ignore",
-                stderr: "ignore",
-              });
-              await proc.exited;
-            },
-            catch: () =>
-              new AgentdError({
-                message: `Cannot unload ${label(task.id)}`,
-                code: "LAUNCHD_FAILED",
-              }),
-          });
+          // Best-effort unload — job may already be unloaded
+          yield* launchctlUnload(plist).pipe(Effect.catch(() => Effect.void));
         }
 
         yield* fs.writeFileString(plist, content).pipe(
@@ -176,17 +186,15 @@ class LaunchdService extends ServiceMap.Service<
           ),
         );
 
-        yield* Effect.tryPromise({
+        const loadResult = yield* Effect.tryPromise({
           try: async () => {
             const proc = Bun.spawn(["launchctl", "load", plist], {
               stdout: "ignore",
               stderr: "pipe",
             });
             const code = await proc.exited;
-            if (code !== 0) {
-              const stderr = await new Response(proc.stderr).text();
-              throw new Error(stderr.trim() || `exit code ${code}`);
-            }
+            const stderr = await new Response(proc.stderr).text();
+            return { code, stderr: stderr.trim() };
           },
           catch: (e) =>
             new AgentdError({
@@ -194,23 +202,48 @@ class LaunchdService extends ServiceMap.Service<
               code: "LAUNCHD_FAILED",
             }),
         });
+
+        if (loadResult.code !== 0) {
+          // Rollback: restore old plist and re-load it
+          if (oldContent._tag === "Some") {
+            yield* fs
+              .writeFileString(plist, oldContent.value)
+              .pipe(Effect.catch(() => Effect.void));
+            yield* launchctlUnload(plist).pipe(Effect.catch(() => Effect.void));
+            yield* Effect.tryPromise({
+              try: async () => {
+                const proc = Bun.spawn(["launchctl", "load", plist], {
+                  stdout: "ignore",
+                  stderr: "ignore",
+                });
+                await proc.exited;
+              },
+              catch: () =>
+                new AgentdError({ message: "Rollback load failed", code: "LAUNCHD_FAILED" }),
+            }).pipe(Effect.catch(() => Effect.void));
+          }
+          return yield* new AgentdError({
+            message: `Cannot load ${label(task.id)}: ${loadResult.stderr || `exit code ${loadResult.code}`}`,
+            code: "LAUNCHD_FAILED",
+          });
+        }
       });
 
       const uninstall = Effect.fn("LaunchdService.uninstall")(function* (id: string) {
         const plist = plistPath(id);
         const loaded = yield* isLoaded(id);
         if (loaded) {
-          yield* Effect.tryPromise({
-            try: async () => {
-              const proc = Bun.spawn(["launchctl", "unload", plist], {
-                stdout: "ignore",
-                stderr: "ignore",
+          const result = yield* launchctlUnload(plist);
+          if (result.code !== 0) {
+            // Re-check if still loaded — maybe it was already unloaded
+            const stillLoaded = yield* isLoaded(id);
+            if (stillLoaded) {
+              return yield* new AgentdError({
+                message: `Cannot unload ${label(id)}: ${result.stderr || `exit code ${result.code}`}. Job is still running — plist not removed.`,
+                code: "LAUNCHD_FAILED",
               });
-              await proc.exited;
-            },
-            catch: () =>
-              new AgentdError({ message: `Cannot unload ${label(id)}`, code: "LAUNCHD_FAILED" }),
-          });
+            }
+          }
         }
         yield* fs.remove(plist).pipe(Effect.catch(() => Effect.void));
       });

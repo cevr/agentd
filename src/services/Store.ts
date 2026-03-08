@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema, ServiceMap } from "effect";
+import { Console, Effect, Layer, Option, Schema, ServiceMap } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
@@ -134,9 +134,13 @@ class StoreService extends ServiceMap.Service<
         const results = yield* Effect.forEach(
           jsonFiles,
           (file) =>
-            fs
-              .readFileString(path.join(tasksDir, file))
-              .pipe(Effect.flatMap(decodeTask), Effect.option),
+            fs.readFileString(path.join(tasksDir, file)).pipe(
+              Effect.flatMap(decodeTask),
+              Effect.tapError((e) =>
+                Console.error(`Warning: skipping corrupt task file ${file}: ${e.message}`),
+              ),
+              Effect.option,
+            ),
           { concurrency: "unbounded" },
         );
         return results.filter(Option.isSome).map((o) => o.value);

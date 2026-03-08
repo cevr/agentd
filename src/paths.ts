@@ -2,7 +2,10 @@ import { Config, Effect } from "effect";
 import { Path } from "effect/Path";
 import { AgentdError } from "./errors/index.js";
 
-export const PathEnv = Config.withDefault(Config.string("PATH"), "/usr/local/bin:/usr/bin:/bin");
+export const PathEnv = Config.withDefault(
+  Config.string("PATH"),
+  process.env.PATH ?? "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+);
 
 const Home = Config.string("HOME")
   .asEffect()
