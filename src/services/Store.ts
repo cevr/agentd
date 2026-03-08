@@ -1,9 +1,9 @@
-import { Effect, Layer, Schema, ServiceMap } from "effect";
+import { Effect, Layer, Option, Schema, ServiceMap } from "effect";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
 import { AgentdError } from "../errors/index.js";
-import type { Schedule } from "./Schedule.js";
+import { ScheduleSchema, type Schedule } from "./Schedule.js";
 
 export type Provider = "claude" | "codex";
 
@@ -11,7 +11,7 @@ export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   id: Schema.String,
   prompt: Schema.String,
   provider: Schema.Literals(["claude", "codex"]),
-  schedule: Schema.Unknown,
+  schedule: ScheduleSchema,
   cwd: Schema.String,
   createdAt: Schema.String,
   status: Schema.Literals(["active", "completed", "failed"]),
@@ -133,17 +133,16 @@ class StoreService extends ServiceMap.Service<
             ),
           );
 
-        const tasks: Array<Task> = [];
-        for (const file of files) {
-          if (!file.endsWith(".json")) continue;
-          const content = yield* fs
-            .readFileString(path.join(tasksDir, file))
-            .pipe(Effect.catch(() => Effect.succeed("")));
-          if (content.length === 0) continue;
-          const task = yield* decodeTask(content).pipe(Effect.catch(() => Effect.succeed(null)));
-          if (task !== null) tasks.push(task);
-        }
-        return tasks;
+        const jsonFiles = files.filter((f) => f.endsWith(".json"));
+        const results = yield* Effect.forEach(
+          jsonFiles,
+          (file) =>
+            fs
+              .readFileString(path.join(tasksDir, file))
+              .pipe(Effect.flatMap(decodeTask), Effect.option),
+          { concurrency: "unbounded" },
+        );
+        return results.filter(Option.isSome).map((o) => o.value);
       });
 
       const update = Effect.fn("StoreService.update")(function* (

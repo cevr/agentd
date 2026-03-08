@@ -2,7 +2,6 @@ import { Console, Effect } from "effect";
 import { Argument, Command } from "effect/unstable/cli";
 import { StoreService } from "../services/Store.js";
 import { AgentPlatformService } from "../services/AgentPlatform.js";
-import type { Schedule } from "../services/Schedule.js";
 
 export const run = Command.make("run", { id: Argument.string("id") }, (config) =>
   Effect.gen(function* () {
@@ -13,8 +12,7 @@ export const run = Command.make("run", { id: Argument.string("id") }, (config) =
     yield* Console.error(`[agentd] Running task ${task.id}: ${task.prompt}`);
     yield* agent.invoke(task.provider, task.prompt, task.cwd);
 
-    const schedule = task.schedule as Schedule;
-    const status = schedule._tag === "Oneshot" ? "completed" : task.status;
+    const status = task.schedule._tag === "Oneshot" ? "completed" : task.status;
     yield* store.update(task.id, {
       lastRun: new Date().toISOString(),
       runCount: task.runCount + 1,

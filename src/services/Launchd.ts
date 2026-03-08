@@ -4,7 +4,7 @@ import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
 import { AgentdError } from "../errors/index.js";
 import type { Task } from "./Store.js";
-import { toCalendarIntervals, type Schedule } from "./Schedule.js";
+import { toCalendarIntervals } from "./Schedule.js";
 
 const LABEL_PREFIX = "com.cvr.agentd";
 const label = (id: string) => `${LABEL_PREFIX}-${id}`;
@@ -40,8 +40,7 @@ const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): 
 
 const generatePlist = (task: Task, binPath: string, home: string, logPath: string): string => {
   const pathEnv = process.env["PATH"] ?? "/usr/local/bin:/usr/bin:/bin";
-  const schedule = task.schedule as Schedule;
-  const intervalXml = calendarIntervalXml(toCalendarIntervals(schedule));
+  const intervalXml = calendarIntervalXml(toCalendarIntervals(task.schedule));
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

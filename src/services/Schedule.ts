@@ -1,23 +1,26 @@
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { AgentdError } from "../errors/index.js";
 
-export type CronSchedule = {
-  readonly _tag: "Cron";
-  readonly minute: number | "*";
-  readonly hour: number | "*";
-  readonly dayOfMonth: number | "*";
-  readonly month: number | "*";
-  readonly dayOfWeek: number | "*" | string;
-  readonly raw: string;
-};
+const NumOrStar = Schema.Union([Schema.Number, Schema.Literal("*")]);
 
-export type OneshotSchedule = {
-  readonly _tag: "Oneshot";
-  readonly at: string; // ISO date string
-  readonly raw: string;
-};
+export const ScheduleSchema = Schema.TaggedUnion({
+  Cron: {
+    minute: NumOrStar,
+    hour: NumOrStar,
+    dayOfMonth: NumOrStar,
+    month: NumOrStar,
+    dayOfWeek: Schema.Union([Schema.Number, Schema.String]),
+    raw: Schema.String,
+  },
+  Oneshot: {
+    at: Schema.String,
+    raw: Schema.String,
+  },
+});
 
-export type Schedule = CronSchedule | OneshotSchedule;
+export type Schedule = typeof ScheduleSchema.Type;
+export type CronSchedule = Extract<Schedule, { readonly _tag: "Cron" }>;
+export type OneshotSchedule = Extract<Schedule, { readonly _tag: "Oneshot" }>;
 
 const DAY_NAMES: Record<string, number> = {
   sunday: 0,
@@ -66,10 +69,24 @@ const parseNumericField = (field: string): number | "*" => {
   return parseInt(field, 10);
 };
 
-const parseDowField = (field: string): number | "*" | string => {
-  if (field === "*") return "*";
-  if (/^\d+$/.test(field)) return parseInt(field, 10);
-  return field;
+const DOW_RANGE = /^(\d)-(\d)$/;
+
+const parseDowField = (field: string): Option.Option<number | "*" | string> => {
+  if (field === "*") return Option.some("*");
+  if (/^\d+$/.test(field)) {
+    const n = parseInt(field, 10);
+    if (n < 0 || n > 6) return Option.none();
+    return Option.some(n);
+  }
+  const rangeMatch = field.match(DOW_RANGE);
+  if (rangeMatch !== null) {
+    const start = parseInt(rangeMatch[1]!, 10);
+    const end = parseInt(rangeMatch[2]!, 10);
+    if (start >= 0 && start <= 6 && end >= 0 && end <= 6 && start < end) {
+      return Option.some(field);
+    }
+  }
+  return Option.none();
 };
 
 export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: Date = new Date()) {
@@ -149,13 +166,15 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
     // 5-field cron
     const cronMatch = trimmed.match(CRON_PATTERN);
     if (cronMatch !== null) {
+      const dow = parseDowField(cronMatch[5]!);
+      if (Option.isNone(dow)) return Option.none();
       return Option.some({
         _tag: "Cron" as const,
         minute: parseNumericField(cronMatch[1]!),
         hour: parseNumericField(cronMatch[2]!),
         dayOfMonth: parseNumericField(cronMatch[3]!),
         month: parseNumericField(cronMatch[4]!),
-        dayOfWeek: parseDowField(cronMatch[5]!),
+        dayOfWeek: dow.value,
         raw: trimmed,
       });
     }

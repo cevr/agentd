@@ -116,6 +116,20 @@ describe("Schedule.parse", () => {
   test("invalid input fails", () => {
     expect(() => run(Schedule.parse("not a schedule", now))).toThrow();
   });
+
+  test("rejects invalid day-of-week in cron", () => {
+    // "abc" is not a valid day-of-week
+    expect(() => run(Schedule.parse("0 9 * * abc", now))).toThrow();
+  });
+
+  test("rejects out-of-range day-of-week number", () => {
+    expect(() => run(Schedule.parse("0 9 * * 8", now))).toThrow();
+  });
+
+  test("rejects invalid day-of-week range", () => {
+    // 5-1 is backwards
+    expect(() => run(Schedule.parse("0 9 * * 5-1", now))).toThrow();
+  });
 });
 
 describe("Schedule.describe", () => {
