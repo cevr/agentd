@@ -25,6 +25,7 @@ What do you need?
 | `agentd "<prompt>" -s "<schedule>"` | Schedule task (default: claude) |
 | `agentd "<prompt>" -s "<schedule>" -p codex` | Schedule with specific provider |
 | `agentd ls` | List all tasks |
+| `agentd ls --json` / `agentd ls -j` | List tasks as JSON |
 | `agentd rm <id>` | Remove task + unload plist |
 | `agentd run <id>` | Execute task (called by launchd) |
 | `agentd logs` | List available logs |
@@ -79,6 +80,7 @@ Natural language (preferred):
 ```
 src/
   main.ts                    # CLI entry + layer wiring
+  paths.ts                   # shared path resolution (HOME, dirs)
   errors/index.ts            # AgentdError (tagged)
   commands/
     index.ts                 # root (= add) + subcommands
@@ -98,6 +100,6 @@ src/
 - `agentd` binary conflicts with nothing, but ensure `~/.bun/bin` is in PATH for launchd
 - Plist `EnvironmentVariables` includes HOME and PATH — launchd runs with minimal env
 - `Schedule` is a pure module, not a `ServiceMap.Service`
-- `Task.schedule` stored as `Schema.Unknown` — cast to `Schedule` type at usage sites
-- Oneshot plists fire once via `StartCalendarInterval` — launchd won't repeat them
+- Task IDs must be alphanumeric, hyphens, or underscores only
+- Oneshot tasks auto-unload their plist after first run
 - Weekday range `1-5` expands to 5 separate `StartCalendarInterval` entries
