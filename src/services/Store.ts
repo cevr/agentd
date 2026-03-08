@@ -121,9 +121,6 @@ class StoreService extends ServiceMap.Service<
       });
 
       const list = Effect.fn("StoreService.list")(function* () {
-        const exists = yield* fs.exists(tasksDir).pipe(Effect.catch(() => Effect.succeed(false)));
-        if (!exists) return [] as ReadonlyArray<Task>;
-
         const files = yield* fs
           .readDirectory(tasksDir)
           .pipe(

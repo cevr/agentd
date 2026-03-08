@@ -108,19 +108,13 @@ class LaunchdService extends ServiceMap.Service<
         ),
       );
 
-      const resolveBinPath = () =>
-        Effect.try({
-          try: () => {
-            const proc = Bun.spawnSync(["which", "agentd"], { stderr: "ignore" });
-            if (proc.success) {
-              const result = new TextDecoder().decode(proc.stdout).trim();
-              if (result.length > 0) return result;
-            }
-            return path.join(home, ".bun", "bin", "agentd");
-          },
+      const resolveBinPath = Effect.fn("LaunchdService.resolveBinPath")(function* () {
+        return yield* Effect.try({
+          try: () => Bun.which("agentd") ?? path.join(home, ".bun", "bin", "agentd"),
           catch: () =>
             new AgentdError({ message: "Cannot resolve agentd binary", code: "READ_FAILED" }),
         });
+      });
 
       const plistPath = (id: string) => path.join(agentsDir, `${label(id)}.plist`);
       const logPath = (id: string) => path.join(logsDir, `${id}.log`);

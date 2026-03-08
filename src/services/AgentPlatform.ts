@@ -10,7 +10,6 @@ class AgentPlatformService extends ServiceMap.Service<
       prompt: string,
       cwd: string,
     ) => Effect.Effect<void, AgentdError>;
-    readonly isExecutable: (provider: Provider) => Effect.Effect<boolean, AgentdError>;
   }
 >()("@cvr/agentd/services/AgentPlatform/AgentPlatformService") {
   static layer = Layer.succeed(AgentPlatformService, {
@@ -48,8 +47,6 @@ class AgentPlatformService extends ServiceMap.Service<
             code: "SPAWN_FAILED",
           }),
       }),
-
-    isExecutable: (provider) => Effect.sync(() => Bun.which(provider) !== null),
   });
 }
 
