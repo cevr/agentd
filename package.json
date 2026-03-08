@@ -1,8 +1,11 @@
 {
   "name": "@cvr/agentd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "repository": { "type": "git", "url": "https://github.com/cevr/agentd" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cevr/agentd"
+  },
   "scripts": {
     "dev": "bun run src/main.ts",
     "build": "bun run scripts/build.ts",
