@@ -49,21 +49,21 @@ export const logs = Command.make(
       }
 
       if (config.follow) {
-        // Follow mode: use tail -f
-        yield* Effect.tryPromise({
-          try: async () => {
-            const proc = Bun.spawn(["tail", "-f", logFile], {
-              stdout: "inherit",
-              stderr: "inherit",
-            });
-            await proc.exited;
-          },
-          catch: (e) =>
-            new AgentdError({
-              message: `Failed to tail log: ${e instanceof Error ? e.message : String(e)}`,
-              code: "READ_FAILED",
+        yield* Effect.acquireUseRelease(
+          Effect.sync(() =>
+            Bun.spawn(["tail", "-f", logFile], { stdout: "inherit", stderr: "inherit" }),
+          ),
+          (proc) =>
+            Effect.tryPromise({
+              try: () => proc.exited,
+              catch: (e) =>
+                new AgentdError({
+                  message: `Failed to tail log: ${e instanceof Error ? e.message : String(e)}`,
+                  code: "READ_FAILED",
+                }),
             }),
-        });
+          (proc) => Effect.sync(() => proc.kill()),
+        );
       } else {
         const content = yield* fs.readFileString(logFile).pipe(
           Effect.mapError(
