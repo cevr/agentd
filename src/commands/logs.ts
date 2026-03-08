@@ -3,6 +3,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli";
 import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import { AgentdError } from "../errors/index.js";
+import { resolvePaths } from "../paths.js";
 
 export const logs = Command.make(
   "logs",
@@ -14,8 +15,7 @@ export const logs = Command.make(
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
-      const home = process.env["HOME"] ?? "";
-      const logsDir = path.join(home, ".agentd", "logs");
+      const { logsDir } = yield* resolvePaths;
 
       const id = config.id;
       if (id._tag === "None") {

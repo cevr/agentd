@@ -3,6 +3,7 @@ import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
 import { AgentdError } from "../errors/index.js";
+import { PathEnv, resolvePaths } from "../paths.js";
 import type { Task } from "./Store.js";
 import { toCalendarIntervals } from "./Schedule.js";
 
@@ -38,8 +39,13 @@ const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): 
   return `  <key>StartCalendarInterval</key>\n  <array>\n${items}\n  </array>`;
 };
 
-const generatePlist = (task: Task, binPath: string, home: string, logPath: string): string => {
-  const pathEnv = process.env["PATH"] ?? "/usr/local/bin:/usr/bin:/bin";
+const generatePlist = (
+  task: Task,
+  binPath: string,
+  home: string,
+  logPath: string,
+  pathEnv: string,
+): string => {
   const intervalXml = calendarIntervalXml(toCalendarIntervals(task.schedule));
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -88,9 +94,9 @@ class LaunchdService extends ServiceMap.Service<
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
-      const home = process.env["HOME"] ?? process.env["USERPROFILE"] ?? "";
-      const logsDir = path.join(home, ".agentd", "logs");
-      const agentsDir = path.join(home, "Library", "LaunchAgents");
+      const paths = yield* resolvePaths;
+      const { logsDir, agentsDir, home } = paths;
+      const pathEnv: string = yield* PathEnv;
 
       yield* fs.makeDirectory(logsDir, { recursive: true }).pipe(
         Effect.mapError(
@@ -136,7 +142,7 @@ class LaunchdService extends ServiceMap.Service<
       const install = Effect.fn("LaunchdService.install")(function* (task: Task) {
         const binPath = yield* resolveBinPath();
         const plist = plistPath(task.id);
-        const content = generatePlist(task, binPath, home, logPath(task.id));
+        const content = generatePlist(task, binPath, home, logPath(task.id), pathEnv);
 
         yield* fs.makeDirectory(agentsDir, { recursive: true }).pipe(
           Effect.mapError(

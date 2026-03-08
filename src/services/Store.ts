@@ -3,6 +3,7 @@ import { FileSystem } from "effect/FileSystem";
 import { Path } from "effect/Path";
 import type { PlatformError } from "effect/PlatformError";
 import { AgentdError } from "../errors/index.js";
+import { resolvePaths } from "../paths.js";
 import { ScheduleSchema, type Schedule } from "./Schedule.js";
 
 export type Provider = "claude" | "codex";
@@ -61,8 +62,7 @@ class StoreService extends ServiceMap.Service<
     Effect.gen(function* () {
       const fs = yield* FileSystem;
       const path = yield* Path;
-      const home = process.env["HOME"] ?? process.env["USERPROFILE"] ?? "";
-      const tasksDir = path.join(home, ".agentd", "tasks");
+      const { tasksDir } = yield* resolvePaths;
 
       yield* fs.makeDirectory(tasksDir, { recursive: true }).pipe(
         Effect.mapError(

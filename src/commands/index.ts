@@ -35,8 +35,8 @@ const root = Command.make(
       const provider = config.provider;
 
       const schedule = yield* Schedule.parse(scheduleStr);
-      const id = crypto.randomUUID().slice(0, 8);
-      const cwd = process.cwd();
+      const id = yield* Effect.sync(() => crypto.randomUUID().slice(0, 8));
+      const cwd = yield* Effect.sync(() => process.cwd());
 
       const store = yield* StoreService;
       const launchd = yield* LaunchdService;

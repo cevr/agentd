@@ -1,16 +1,15 @@
 /** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, expect, it } from "effect-bun-test";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { BunServices } from "@effect/platform-bun";
 import { StoreService } from "../../src/services/Store.js";
 import * as Schedule from "../../src/services/Schedule.js";
-import { withTempDir } from "../helpers/index.js";
+import { testStoreLayer, withTempDir } from "../helpers/index.js";
 
 describe("add workflow", () => {
   it.live("creates task and installs plist", () =>
     withTempDir((dir) =>
       Effect.gen(function* () {
-        process.env["HOME"] = dir;
         const store = yield* StoreService;
 
         const schedule = yield* Schedule.parse("every day at 9:00");
@@ -28,8 +27,8 @@ describe("add workflow", () => {
 
         const retrieved = yield* store.get("test-add");
         expect(retrieved.prompt).toBe("babysit pr");
-      }),
-    ).pipe(Effect.provide(StoreService.layer.pipe(Layer.provideMerge(BunServices.layer)))),
+      }).pipe(Effect.provide(testStoreLayer(dir))),
+    ).pipe(Effect.provide(BunServices.layer)),
   );
 
   it.live("parses natural language schedule", () =>

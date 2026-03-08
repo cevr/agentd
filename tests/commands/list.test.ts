@@ -1,29 +1,25 @@
 /** @effect-diagnostics effect/strictEffectProvide:skip-file */
 import { describe, expect, it } from "effect-bun-test";
-import { Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { BunServices } from "@effect/platform-bun";
 import { StoreService } from "../../src/services/Store.js";
 import * as Schedule from "../../src/services/Schedule.js";
-import { withTempDir } from "../helpers/index.js";
-
-const TestLayer = StoreService.layer.pipe(Layer.provideMerge(BunServices.layer));
+import { testStoreLayer, withTempDir } from "../helpers/index.js";
 
 describe("list behavior", () => {
   it.live("empty store returns no tasks", () =>
     withTempDir((dir) =>
       Effect.gen(function* () {
-        process.env["HOME"] = dir;
         const store = yield* StoreService;
         const tasks = yield* store.list();
         expect(tasks).toHaveLength(0);
-      }),
-    ).pipe(Effect.provide(TestLayer)),
+      }).pipe(Effect.provide(testStoreLayer(dir))),
+    ).pipe(Effect.provide(BunServices.layer)),
   );
 
   it.live("lists tasks with correct fields", () =>
     withTempDir((dir) =>
       Effect.gen(function* () {
-        process.env["HOME"] = dir;
         const store = yield* StoreService;
         const schedule = yield* Schedule.parse("every day at 10:00");
 
@@ -52,8 +48,8 @@ describe("list behavior", () => {
         const codexTask = tasks.find((t) => t.id === "list-2");
         expect(codexTask?.provider).toBe("codex");
         expect(codexTask?.prompt).toBe("review prs");
-      }),
-    ).pipe(Effect.provide(TestLayer)),
+      }).pipe(Effect.provide(testStoreLayer(dir))),
+    ).pipe(Effect.provide(BunServices.layer)),
   );
 
   it.live("describe formats schedule descriptions", () =>
