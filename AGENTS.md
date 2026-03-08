@@ -15,18 +15,22 @@ bun run test          # bun test
 
 - Effect v4 (effect-smol): `ServiceMap.Service`, `Effect.fn`, `Schema.TaggedErrorClass`
 - Four services: `StoreService` (task CRUD at `~/.agentd/tasks/`), `LaunchdService` (plist gen + launchctl), `AgentPlatformService` (agent invocation), `Schedule` (pure parsing module)
+- Shared path resolution in `src/paths.ts` — Config-based HOME reading, all `.agentd` paths derived from one place
 - Commands are `Command.make` from `effect/unstable/cli`, composed in `src/commands/index.ts`
-- Errors use structured `code` fields — match with `e.code`, not string parsing
-- `main.ts` wraps CLI in custom error handler: app errors → stderr
+- Errors use structured `code` fields (required) — match with `e.code`, not string parsing
+- `main.ts` wraps CLI in custom error handler: app errors → stderr with recovery hints
+- `agentd ls --json` / `-j` outputs machine-readable JSON
 
 ## Gotchas
 
 - `Schedule` is a pure module, not a service — no `ServiceMap.Service`, just exported functions
-- `Task.schedule` is typed as `Schema.Unknown` for storage flexibility — cast to `Schedule` at usage sites
+- `Task.schedule` is typed via `Schema.TaggedUnion` — no casts needed, access `._tag` directly
 - `LaunchdService.install` auto-unloads existing plist before reinstalling
-- Oneshot tasks get status `completed` after first run; cron tasks stay `active`
-- Binary resolves via `which agentd` then falls back to `~/.bun/bin/agentd`
+- Oneshot tasks auto-unload plist after first run and get status `completed`
+- Binary resolves via `Bun.which("agentd")` then falls back to `~/.bun/bin/agentd`
 - Plist labels: `com.cvr.agentd-{id}`, logs at `~/.agentd/logs/{id}.log`
+- Task IDs validated: alphanumeric, hyphens, underscores only (path traversal prevention)
+- All plist interpolated values are XML-escaped
 
 ## For Related Docs
 
