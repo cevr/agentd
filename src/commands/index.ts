@@ -1,5 +1,6 @@
 import { Console, Effect } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
+import { AgentdError } from "../errors/index.js";
 import { StoreService } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
 import * as Schedule from "../services/Schedule.js";
@@ -26,8 +27,10 @@ const root = Command.make(
       }
 
       if (config.schedule._tag === "None") {
-        yield* Console.error("Error: --schedule (-s) is required");
-        return;
+        return yield* new AgentdError({
+          message: 'Missing --schedule (-s). Usage: agentd "<prompt>" -s "<schedule>"',
+          code: "MISSING_FLAG",
+        });
       }
 
       const prompt = config.prompt.value;

@@ -1,19 +1,19 @@
 #!/usr/bin/env bun
-import { Console, Effect, Layer } from "effect";
+import { Console, Effect, Layer, Schema } from "effect";
 import { Command } from "effect/unstable/cli";
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { command } from "./commands/index.js";
+import { AgentdError } from "./errors/index.js";
+
+const isAgentdError = Schema.is(AgentdError);
 import { StoreService } from "./services/Store.js";
 import { LaunchdService } from "./services/Launchd.js";
 import { AgentPlatformService } from "./services/AgentPlatform.js";
 
-const APP_ERROR_TAG = "@cvr/agentd/AgentdError";
-
-const isAppError = (e: unknown): e is { _tag: string; code?: string; message: string } =>
-  typeof e === "object" &&
-  e !== null &&
-  "_tag" in e &&
-  (e as { _tag: string })._tag === APP_ERROR_TAG;
+const RECOVERY_HINTS: Record<string, string> = {
+  NOT_FOUND: "Run 'agentd ls' to see available tasks.",
+  INVALID_SCHEDULE: "See 'agentd --help' for schedule formats.",
+};
 
 const cli = Command.run(command, {
   version: typeof APP_VERSION !== "undefined" ? APP_VERSION : "0.0.0-dev",
@@ -26,13 +26,18 @@ const ServiceLayer = Layer.mergeAll(
 ).pipe(Layer.provideMerge(BunServices.layer));
 
 const program = cli.pipe(
+  Effect.tapDefect((defect) => Console.error(`Internal error: ${String(defect)}`)),
   Effect.tapCause((cause) =>
     Effect.gen(function* () {
       for (const reason of cause.reasons) {
         if (reason._tag !== "Fail") continue;
         const err = reason.error;
-        if (!isAppError(err)) continue;
+        if (!isAgentdError(err)) continue;
         yield* Console.error(err.message);
+        const hint = RECOVERY_HINTS[err.code];
+        if (hint !== undefined) {
+          yield* Console.error(hint);
+        }
       }
     }),
   ),

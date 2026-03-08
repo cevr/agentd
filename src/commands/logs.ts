@@ -20,27 +20,49 @@ export const logs = Command.make(
       const id = config.id;
       if (id._tag === "None") {
         // List available logs
-        const exists = yield* fs.exists(logsDir).pipe(Effect.catch(() => Effect.succeed(false)));
+        const exists = yield* fs.exists(logsDir).pipe(
+          Effect.mapError(
+            () =>
+              new AgentdError({
+                message: `Cannot access logs dir: ${logsDir}`,
+                code: "READ_FAILED",
+              }),
+          ),
+        );
         if (!exists) {
-          yield* Console.log("No logs found.");
+          yield* Console.error("No logs found.");
           return;
         }
-        const files = yield* fs
-          .readDirectory(logsDir)
-          .pipe(Effect.catch(() => Effect.succeed([] as string[])));
+        const files = yield* fs.readDirectory(logsDir).pipe(
+          Effect.mapError(
+            () =>
+              new AgentdError({
+                message: `Cannot read logs dir: ${logsDir}`,
+                code: "READ_FAILED",
+              }),
+          ),
+        );
         if (files.length === 0) {
-          yield* Console.log("No logs found.");
+          yield* Console.error("No logs found.");
           return;
         }
-        yield* Console.log("Available logs:");
+        yield* Console.error("Available logs:");
         for (const file of files) {
-          if (file.endsWith(".log")) yield* Console.log(`  ${file.replace(".log", "")}`);
+          if (file.endsWith(".log")) yield* Console.log(file.replace(".log", ""));
         }
         return;
       }
 
       const logFile = path.join(logsDir, `${id.value}.log`);
-      const exists = yield* fs.exists(logFile).pipe(Effect.catch(() => Effect.succeed(false)));
+      const exists = yield* fs.exists(logFile).pipe(
+        Effect.mapError(
+          () =>
+            new AgentdError({
+              message: `Cannot access log file: ${logFile}`,
+              code: "READ_FAILED",
+            }),
+        ),
+      );
       if (!exists) {
         return yield* new AgentdError({
           message: `No logs found for task ${id.value}`,
