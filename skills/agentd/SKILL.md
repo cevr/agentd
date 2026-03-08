@@ -65,8 +65,10 @@ Natural language (preferred):
 
 - Tasks stored at `~/.agentd/tasks/{id}.json`
 - Plists at `~/Library/LaunchAgents/com.cvr.agentd-{id}.plist`
-- `agentd rm <id>` unloads plist then deletes task file
+- `agentd rm <id>` unloads plist, deletes task file, and cleans up log file
 - Oneshot tasks auto-complete after first run
+- `install` is atomic: rolls back to previous plist if `launchctl load` fails
+- `uninstall` verifies unload succeeded before removing plist — won't orphan running jobs
 
 ## Logs
 
@@ -82,24 +84,29 @@ src/
   main.ts                    # CLI entry + layer wiring
   paths.ts                   # shared path resolution (HOME, dirs)
   errors/index.ts            # AgentdError (tagged)
+  output.ts                  # NO_COLOR + TTY detection
   commands/
     index.ts                 # root (= add) + subcommands
     list.ts                  # ls
-    remove.ts                # rm
+    remove.ts                # rm (+ log cleanup)
     run.ts                   # run (internal, fired by plist)
     logs.ts                  # logs
   services/
     Schedule.ts              # pure NL/cron parser
     Store.ts                 # task CRUD (~/.agentd/tasks/)
-    Launchd.ts               # plist gen + launchctl
-    AgentPlatform.ts         # agent invocation
+    Launchd.ts               # plist gen + launchctl (atomic install/uninstall)
+    AgentPlatform.ts         # agent invocation (provider arg builders)
 ```
 
 ## Gotchas
 
 - `agentd` binary conflicts with nothing, but ensure `~/.bun/bin` is in PATH for launchd
-- Plist `EnvironmentVariables` includes HOME and PATH — launchd runs with minimal env
+- Plist `EnvironmentVariables` includes HOME and PATH — `PathEnv` inherits `process.env.PATH` at build time
 - `Schedule` is a pure module, not a `ServiceMap.Service`
 - Task IDs must be alphanumeric, hyphens, or underscores only
 - Oneshot tasks auto-unload their plist after first run
 - Weekday range `1-5` expands to 5 separate `StartCalendarInterval` entries
+- `store.list` warns on corrupt task files to stderr — doesn't silently drop
+- `NO_COLOR=1` suppresses decorative output (separator lines in `ls`)
+- `generatePlist` and `escapeXml` are `@internal` exports for testability
+- Provider args are extracted into `claudeArgs`/`codexArgs` — extend in `AgentPlatform.ts`

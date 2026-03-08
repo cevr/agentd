@@ -25,12 +25,19 @@ bun run test          # bun test
 
 - `Schedule` is a pure module, not a service — no `ServiceMap.Service`, just exported functions
 - `Task.schedule` is typed via `Schema.TaggedUnion` — no casts needed, access `._tag` directly
-- `LaunchdService.install` auto-unloads existing plist before reinstalling
+- `LaunchdService.install` is atomic: reads old plist before overwriting, rolls back if `launchctl load` fails
+- `LaunchdService.uninstall` checks unload exit code — refuses to remove plist if job still running
 - Oneshot tasks auto-unload plist after first run and get status `completed`
 - Binary resolves via `Bun.which("agentd")` then falls back to `~/.bun/bin/agentd`
 - Plist labels: `com.cvr.agentd-{id}`, logs at `~/.agentd/logs/{id}.log`
+- `rm` cleans up both task file and log file
 - Task IDs validated: alphanumeric, hyphens, underscores only (path traversal prevention)
 - All plist interpolated values are XML-escaped
+- `store.list` warns on corrupt task files to stderr — doesn't silently drop
+- `PathEnv` inherits `process.env.PATH` at build time; `NO_COLOR` env var respected via `src/output.ts`
+- `Bun.spawn` needs mutable `Array<string>`, not `ReadonlyArray` — watch for type errors
+- `generatePlist` and `escapeXml` are `@internal` exports for testability
+- Provider args extracted into `claudeArgs`/`codexArgs` — add new providers in `src/services/AgentPlatform.ts`
 
 ## For Related Docs
 
