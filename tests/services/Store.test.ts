@@ -82,4 +82,26 @@ describe("StoreService", () => {
       }),
     ).pipe(Effect.provide(TestLayer)),
   );
+
+  it.live("rejects path traversal in task ID", () =>
+    withTempDir((dir) =>
+      Effect.gen(function* () {
+        process.env["HOME"] = dir;
+        const store = yield* StoreService;
+        const exit = yield* store.get("../../etc/passwd").pipe(Effect.exit);
+        expect(exit._tag).toBe("Failure");
+      }),
+    ).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.live("rejects task ID with special characters", () =>
+    withTempDir((dir) =>
+      Effect.gen(function* () {
+        process.env["HOME"] = dir;
+        const store = yield* StoreService;
+        const exit = yield* store.add({ ...makeInput("bad/id"), id: "bad/id" }).pipe(Effect.exit);
+        expect(exit._tag).toBe("Failure");
+      }),
+    ).pipe(Effect.provide(TestLayer)),
+  );
 });

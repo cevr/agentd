@@ -9,6 +9,15 @@ import { toCalendarIntervals, type Schedule } from "./Schedule.js";
 const LABEL_PREFIX = "com.cvr.agentd";
 const label = (id: string) => `${LABEL_PREFIX}-${id}`;
 
+/** @internal */
+export const escapeXml = (s: string): string =>
+  s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
 const calendarIntervalXml = (intervals: ReadonlyArray<Record<string, number>>): string => {
   if (intervals.length === 1) {
     const entry = intervals[0]!;
@@ -39,27 +48,27 @@ const generatePlist = (task: Task, binPath: string, home: string, logPath: strin
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>${label(task.id)}</string>
+  <string>${escapeXml(label(task.id))}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${binPath}</string>
+    <string>${escapeXml(binPath)}</string>
     <string>run</string>
-    <string>${task.id}</string>
+    <string>${escapeXml(task.id)}</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key>
-    <string>${home}</string>
+    <string>${escapeXml(home)}</string>
     <key>PATH</key>
-    <string>${pathEnv}</string>
+    <string>${escapeXml(pathEnv)}</string>
   </dict>
   <key>WorkingDirectory</key>
-  <string>${task.cwd}</string>
+  <string>${escapeXml(task.cwd)}</string>
 ${intervalXml}
   <key>StandardOutPath</key>
-  <string>${logPath}</string>
+  <string>${escapeXml(logPath)}</string>
   <key>StandardErrorPath</key>
-  <string>${logPath}</string>
+  <string>${escapeXml(logPath)}</string>
   <key>KeepAlive</key>
   <false/>
 </dict>

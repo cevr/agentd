@@ -27,6 +27,18 @@ export type TaskInput = {
   readonly cwd: string;
 };
 
+const VALID_ID = /^[a-zA-Z0-9_-]+$/;
+
+const validateId = Effect.fn("StoreService.validateId")(function* (id: string) {
+  if (!VALID_ID.test(id)) {
+    return yield* new AgentdError({
+      message: `Invalid task ID: "${id}". Only alphanumeric, hyphens, and underscores allowed.`,
+      code: "INVALID_ID",
+    });
+  }
+  return id;
+});
+
 const TaskJson = Schema.fromJsonString(Task);
 const decodeTask = Schema.decodeUnknownEffect(TaskJson);
 const encodeTask = Schema.encodeEffect(TaskJson);
@@ -65,6 +77,7 @@ class StoreService extends ServiceMap.Service<
       const taskPath = (id: string) => path.join(tasksDir, `${id}.json`);
 
       const add = Effect.fn("StoreService.add")(function* (input: TaskInput) {
+        yield* validateId(input.id);
         const task = new Task({
           ...input,
           createdAt: new Date().toISOString(),
@@ -89,6 +102,7 @@ class StoreService extends ServiceMap.Service<
       });
 
       const get = Effect.fn("StoreService.get")(function* (id: string) {
+        yield* validateId(id);
         const content = yield* fs.readFileString(taskPath(id)).pipe(
           Effect.mapError(
             (e: PlatformError) =>
@@ -136,6 +150,7 @@ class StoreService extends ServiceMap.Service<
         id: string,
         patch: Partial<Pick<Task, "status" | "lastRun" | "runCount">>,
       ) {
+        yield* validateId(id);
         const existing = yield* get(id);
         const updated = new Task({ ...existing, ...patch });
         const json = yield* encodeTask(updated).pipe(
@@ -156,6 +171,7 @@ class StoreService extends ServiceMap.Service<
       });
 
       const remove = Effect.fn("StoreService.remove")(function* (id: string) {
+        yield* validateId(id);
         yield* fs
           .remove(taskPath(id))
           .pipe(
