@@ -1,5 +1,15 @@
 # @cvr/agentd
 
+## 0.3.0
+
+### Minor Changes
+
+- [`44ef603`](https://github.com/cevr/agentd/commit/44ef6036d3ec565050aea002d73f54440a78adb0) Thanks [@cevr](https://github.com/cevr)! - Conditional stops: `--stop-when` flag lets agents signal task completion based on natural language conditions. Per-run nonce signal, verification via second agent call, requires deterministic fallback (`--max-runs`/`--until`). Also refactors `AgentPlatformService.invoke` to capture+tee stdout.
+
+- [`9ca642d`](https://github.com/cevr/agentd/commit/9ca642d4cbc04c02b11c6faad4907d9838ded5df) Thanks [@cevr](https://github.com/cevr)! - Task context metadata: captures git branch, remote, commit, default branch, PR number/URL, and issue number at creation time. Injected into agent prompt as `<context>` block at invocation.
+
+- [`7e87148`](https://github.com/cevr/agentd/commit/7e87148e074f65cace8922341f675c53d4702e2b) Thanks [@cevr](https://github.com/cevr)! - Stop conditions for scheduled tasks: `--max-runs` and `--until`. Tasks auto-complete and uninstall when any condition is met (OR semantics). Also fixes lifecycle state not updating on failed agent runs.
+
 ## 0.2.0
 
 ### Minor Changes
