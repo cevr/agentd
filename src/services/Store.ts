@@ -24,6 +24,13 @@ export const TaskContext = Schema.Struct({
 
 export type TaskContext = typeof TaskContext.Type;
 
+export const StopCondition = Schema.TaggedUnion({
+  MaxRuns: { count: Schema.Number },
+  AfterDate: { date: Schema.String },
+});
+
+export type StopCondition = typeof StopCondition.Type;
+
 export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   id: Schema.String,
   prompt: Schema.String,
@@ -35,6 +42,7 @@ export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   lastRun: Schema.optional(Schema.String),
   runCount: Schema.Number,
   context: Schema.optional(TaskContext),
+  stopConditions: Schema.optional(Schema.Array(StopCondition)),
 }) {}
 
 export type TaskInput = {
@@ -44,6 +52,7 @@ export type TaskInput = {
   readonly schedule: Schedule;
   readonly cwd: string;
   readonly context?: TaskContext | undefined;
+  readonly stopConditions?: ReadonlyArray<StopCondition> | undefined;
 };
 
 const VALID_ID = /^[a-zA-Z0-9_-]+$/;

@@ -20,7 +20,9 @@ bun run test          # bun test
 - Commands are `Command.make` from `effect/unstable/cli`, composed in `src/commands/index.ts`
 - Errors use structured `code` fields (required) — match with `e.code`, not string parsing
 - `main.ts` wraps CLI in custom error handler: app errors → stderr with recovery hints
-- `agentd ls --json` / `-j` outputs machine-readable JSON (includes `context` field)
+- `agentd ls --json` / `-j` outputs machine-readable JSON (includes `context` and `stopConditions` fields)
+- Stop conditions on `Task` via `StopCondition` tagged union (`MaxRuns`, `AfterDate`) — OR semantics, evaluated pre/post-run in `run.ts`
+- `StopEvaluator` in `src/services/StopEvaluator.ts` — pure evaluation module (not a service), `evaluate()` returns first matching reason
 
 ## Gotchas
 
@@ -43,6 +45,9 @@ bun run test          # bun test
 - `Schema.OptionFromUndefinedOr` fails when JSON key is absent (not just `undefined`) — use `Schema.optional` for JSON-persisted optional fields instead
 - Context capture runs git/gh in parallel; all commands fail silently (non-git dirs → `undefined`)
 - Issue number parsed from branch name pattern `fix/123-thing` — requires 2+ digit number
+- Stop conditions live on `Task`, not `Schedule` — schedule = "when does it fire?", stop = "should it still be active?"
+- `run.ts` updates lifecycle state (`lastRun`, `runCount`) even on failed agent invocations — stop policies depend on accurate counts
+- `--until` date-only input (YYYY-MM-DD) normalizes to end of day local time (23:59:59.999)
 
 ## For Related Docs
 
