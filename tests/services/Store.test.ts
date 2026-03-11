@@ -129,4 +129,34 @@ describe("StoreService", () => {
       }).pipe(Effect.provide(testStoreLayer(dir))),
     ).pipe(Effect.provide(BunServices.layer)),
   );
+
+  it.live("round-trips task with conditionalStop", () =>
+    withTempDir((dir) =>
+      Effect.gen(function* () {
+        const store = yield* StoreService;
+        const task = yield* store.add(
+          makeInput("cond-stop", {
+            stopConditions: [{ _tag: "MaxRuns", count: 20 }],
+            conditionalStop: { condition: "the PR is merged" },
+          }),
+        );
+        expect(task.conditionalStop).toEqual({ condition: "the PR is merged" });
+
+        const retrieved = yield* store.get("cond-stop");
+        expect(retrieved.conditionalStop).toEqual({ condition: "the PR is merged" });
+        expect(retrieved.stopConditions).toHaveLength(1);
+      }).pipe(Effect.provide(testStoreLayer(dir))),
+    ).pipe(Effect.provide(BunServices.layer)),
+  );
+
+  it.live("round-trips task without conditionalStop", () =>
+    withTempDir((dir) =>
+      Effect.gen(function* () {
+        const store = yield* StoreService;
+        yield* store.add(makeInput("no-cond"));
+        const retrieved = yield* store.get("no-cond");
+        expect(retrieved.conditionalStop).toBeUndefined();
+      }).pipe(Effect.provide(testStoreLayer(dir))),
+    ).pipe(Effect.provide(BunServices.layer)),
+  );
 });

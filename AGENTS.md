@@ -20,9 +20,11 @@ bun run test          # bun test
 - Commands are `Command.make` from `effect/unstable/cli`, composed in `src/commands/index.ts`
 - Errors use structured `code` fields (required) — match with `e.code`, not string parsing
 - `main.ts` wraps CLI in custom error handler: app errors → stderr with recovery hints
-- `agentd ls --json` / `-j` outputs machine-readable JSON (includes `context` and `stopConditions` fields)
+- `agentd ls --json` / `-j` outputs machine-readable JSON (includes `context`, `stopConditions`, and `conditionalStop` fields)
 - Stop conditions on `Task` via `StopCondition` tagged union (`MaxRuns`, `AfterDate`) — OR semantics, evaluated pre/post-run in `run.ts`
 - `StopEvaluator` in `src/services/StopEvaluator.ts` — pure evaluation module (not a service), `evaluate()` returns first matching reason
+- Conditional stops via `--stop-when` flag — agent signals completion via per-run nonce, verified by a second agent invocation
+- `Verification` in `src/services/Verification.ts` — pure module, calls `invokeCapture` for lightweight YES/NO verification
 
 ## Gotchas
 
@@ -48,6 +50,13 @@ bun run test          # bun test
 - Stop conditions live on `Task`, not `Schedule` — schedule = "when does it fire?", stop = "should it still be active?"
 - `run.ts` updates lifecycle state (`lastRun`, `runCount`) even on failed agent invocations — stop policies depend on accurate counts
 - `--until` date-only input (YYYY-MM-DD) normalizes to end of day local time (23:59:59.999)
+- `--stop-when` requires `--max-runs` or `--until` — enforced at CLI time, error code `MISSING_FALLBACK`
+- `conditionalStop` is a separate field on `Task`, not a `StopCondition` variant — it's a runtime protocol, not a pure predicate
+- `AgentPlatformService.invoke` returns `{ exitCode, output }` — stdout is piped+tee'd (captured and written to parent stdout)
+- `AgentPlatformService.invokeCapture` captures stdout only (no tee) — used for verification calls
+- Per-run nonce format: `AGENTD_STOP_<8-char-hex>` — injected in `<stop-signal>` block, detected by exact string match
+- Conditional stop flow in `run.ts`: nonce injection → signal detection → verification → complete. Runs after deterministic post-stop check
+- Verification is heuristic, not a trust boundary — same agent checks its own output for accidental matches
 
 ## For Related Docs
 

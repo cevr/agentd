@@ -28,6 +28,7 @@ export const list = Command.make(
           runCount: t.runCount,
           context: t.context,
           stopConditions: t.stopConditions,
+          conditionalStop: t.conditionalStop,
         }));
         // @effect-diagnostics-next-line effect/preferSchemaOverJson:off
         yield* Console.log(JSON.stringify(out, null, 2));
@@ -46,10 +47,15 @@ export const list = Command.make(
 
       for (const task of tasks) {
         const scheduleDesc = describe(task.schedule);
-        const stopDesc =
-          task.stopConditions !== undefined && task.stopConditions.length > 0
-            ? ` (${StopEvaluator.describe(task.stopConditions, task)})`
-            : "";
+        const stopParts: Array<string> = [];
+        if (task.stopConditions !== undefined && task.stopConditions.length > 0) {
+          stopParts.push(StopEvaluator.describe(task.stopConditions, task));
+        }
+        if (task.conditionalStop !== undefined) {
+          const cond = task.conditionalStop.condition;
+          stopParts.push(`when: ${cond.length > 20 ? `${cond.slice(0, 17)}...` : cond}`);
+        }
+        const stopDesc = stopParts.length > 0 ? ` (${stopParts.join(", ")})` : "";
         const prompt = task.prompt.length > 40 ? `${task.prompt.slice(0, 37)}...` : task.prompt;
         yield* Console.log(
           `${task.id.padEnd(10)} ${task.provider.padEnd(10)} ${(scheduleDesc + stopDesc).padEnd(30)} ${task.status.padEnd(10)} ${prompt}`,

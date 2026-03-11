@@ -31,6 +31,12 @@ export const StopCondition = Schema.TaggedUnion({
 
 export type StopCondition = typeof StopCondition.Type;
 
+export const ConditionalStop = Schema.Struct({
+  condition: Schema.String,
+});
+
+export type ConditionalStop = typeof ConditionalStop.Type;
+
 export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   id: Schema.String,
   prompt: Schema.String,
@@ -43,6 +49,7 @@ export class Task extends Schema.Class<Task>("@cvr/agentd/Task")({
   runCount: Schema.Number,
   context: Schema.optional(TaskContext),
   stopConditions: Schema.optional(Schema.Array(StopCondition)),
+  conditionalStop: Schema.optional(ConditionalStop),
 }) {}
 
 export type TaskInput = {
@@ -53,6 +60,7 @@ export type TaskInput = {
   readonly cwd: string;
   readonly context?: TaskContext | undefined;
   readonly stopConditions?: ReadonlyArray<StopCondition> | undefined;
+  readonly conditionalStop?: ConditionalStop | undefined;
 };
 
 const VALID_ID = /^[a-zA-Z0-9_-]+$/;

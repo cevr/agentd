@@ -1,7 +1,7 @@
 import { Console, Effect } from "effect";
 import { Argument, Command, Flag } from "effect/unstable/cli";
 import { AgentdError } from "../errors/index.js";
-import { StoreService, type StopCondition } from "../services/Store.js";
+import { StoreService, type ConditionalStop, type StopCondition } from "../services/Store.js";
 import { LaunchdService } from "../services/Launchd.js";
 import * as Schedule from "../services/Schedule.js";
 import * as StopEvaluator from "../services/StopEvaluator.js";
@@ -37,6 +37,7 @@ const root = Command.make(
     ),
     maxRuns: Flag.integer("max-runs").pipe(Flag.optional),
     until: Flag.string("until").pipe(Flag.optional),
+    stopWhen: Flag.string("stop-when").pipe(Flag.optional),
   },
   (config) =>
     Effect.gen(function* () {
@@ -70,6 +71,20 @@ const root = Command.make(
         const date = yield* parseUntilDate(config.until.value);
         stopConditions.push({ _tag: "AfterDate", date });
       }
+
+      // Conditional stop requires a deterministic fallback
+      let conditionalStop: ConditionalStop | undefined;
+      if (config.stopWhen._tag === "Some") {
+        if (stopConditions.length === 0) {
+          return yield* new AgentdError({
+            message:
+              "--stop-when requires a deterministic fallback (--max-runs or --until). The agent could run forever without one.",
+            code: "MISSING_FALLBACK",
+          });
+        }
+        conditionalStop = { condition: config.stopWhen.value };
+      }
+
       const store = yield* StoreService;
       const launchd = yield* LaunchdService;
 
@@ -81,6 +96,7 @@ const root = Command.make(
         cwd,
         context,
         stopConditions: stopConditions.length > 0 ? stopConditions : undefined,
+        conditionalStop,
       });
       yield* launchd.install(task);
 
@@ -90,6 +106,9 @@ const root = Command.make(
       yield* Console.log(`  Schedule: ${Schedule.describe(schedule)}`);
       if (task.stopConditions !== undefined && task.stopConditions.length > 0) {
         yield* Console.log(`  Stop:     ${StopEvaluator.describe(task.stopConditions, task)}`);
+      }
+      if (task.conditionalStop !== undefined) {
+        yield* Console.log(`  When:     ${task.conditionalStop.condition}`);
       }
       yield* Console.log(`  CWD:      ${cwd}`);
       if (context !== undefined) {
@@ -112,6 +131,11 @@ const root = Command.make(
     {
       command: 'agentd "check deploys" -s "every weekday at 9am" --until 2026-03-20',
       description: "Stop after a date",
+    },
+    {
+      command:
+        'agentd "babysit pr" -s "every day at 9am" --stop-when "the PR is merged" --max-runs 20',
+      description: "Stop when condition is met (with fallback)",
     },
     { command: 'agentd "run tests" -s "in 30 minutes"', description: "Schedule a one-shot task" },
     { command: "agentd ls", description: "List scheduled tasks" },

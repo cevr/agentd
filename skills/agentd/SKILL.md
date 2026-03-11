@@ -24,6 +24,7 @@ What do you need?
 | ------- | ------------ |
 | `agentd "<prompt>" -s "<schedule>"` | Schedule task (default: claude) |
 | `agentd "<prompt>" -s "<schedule>" -p codex` | Schedule with specific provider |
+| `agentd "<prompt>" -s "<schedule>" --stop-when "<condition>" --max-runs N` | Conditional stop with fallback |
 | `agentd ls` | List all tasks |
 | `agentd ls --json` / `agentd ls -j` | List tasks as JSON |
 | `agentd rm <id>` | Remove task + unload plist |
@@ -77,9 +78,30 @@ At creation time, agentd captures environmental context (best-effort, all option
 
 At invocation, context is injected as a `<context>` block prepended to the prompt. Enables natural prompts like `"babysit this pr"`.
 
+## Conditional Stops
+
+`--stop-when` lets the agent signal "I'm done" based on a natural language condition. Requires a deterministic fallback (`--max-runs` or `--until`).
+
+```bash
+agentd "babysit pr" -s "every day at 9am" --stop-when "the PR is merged" --max-runs 20
+```
+
+**How it works:**
+
+1. Each run generates a random nonce (`AGENTD_STOP_<8-char-hex>`) injected into the prompt via `<stop-signal>` block
+2. Agent outputs the nonce when it determines the condition is met
+3. `run.ts` detects nonce in captured output (`output.includes(nonce)`)
+4. Verification call: second agent invocation confirms the signal was intentional (not accidental match)
+5. If verified: task completes. If rejected: continues to next scheduled run
+
+**Three-layer defense:**
+- Signal: per-run nonce (not guessable, not a static marker)
+- Verification: lightweight YES/NO check (heuristic, not security boundary)
+- Fallback: deterministic `--max-runs`/`--until` always enforced
+
 ## Management
 
-- Tasks stored at `~/.agentd/tasks/{id}.json` (includes `context` field)
+- Tasks stored at `~/.agentd/tasks/{id}.json` (includes `context` and `conditionalStop` fields)
 - Plists at `~/Library/LaunchAgents/com.cvr.agentd-{id}.plist`
 - `agentd rm <id>` unloads plist, deletes task file, and cleans up log file
 - Oneshot tasks auto-complete after first run
@@ -106,13 +128,15 @@ src/
     index.ts                 # root (= add) + subcommands
     list.ts                  # ls
     remove.ts                # rm (+ log cleanup)
-    run.ts                   # run (internal, fired by plist)
+    run.ts                   # run (internal, fired by plist) + conditional stop protocol
     logs.ts                  # logs
   services/
     Schedule.ts              # pure NL/cron parser
     Store.ts                 # task CRUD (~/.agentd/tasks/)
+    StopEvaluator.ts         # pure deterministic stop evaluation
     Launchd.ts               # plist gen + launchctl (atomic install/uninstall)
-    AgentPlatform.ts         # agent invocation (provider arg builders)
+    AgentPlatform.ts         # agent invocation (capture+tee stdout)
+    Verification.ts          # conditional stop verification (invokeCapture)
 ```
 
 ## Gotchas
@@ -127,3 +151,8 @@ src/
 - `NO_COLOR=1` suppresses decorative output (separator lines in `ls`)
 - `generatePlist` and `escapeXml` are `@internal` exports for testability
 - Provider args are extracted into `claudeArgs`/`codexArgs` — extend in `AgentPlatform.ts`
+- `invoke` returns `{ exitCode, output }` — stdout is piped+tee'd (captured and forwarded to parent)
+- `invokeCapture` captures stdout only (no tee) — used for verification calls
+- `--stop-when` requires `--max-runs` or `--until` — error code `MISSING_FALLBACK`
+- Conditional stop nonce: `AGENTD_STOP_<8-char-hex>` — per-run, injected in `<stop-signal>` block
+- Verification is heuristic (same agent), not a trust boundary — guards against accidental matches only
