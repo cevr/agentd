@@ -1,5 +1,11 @@
 # @cvr/agentd
 
+## 0.3.1
+
+### Patch Changes
+
+- [#3](https://github.com/cevr/agentd/pull/3) [`6c13a11`](https://github.com/cevr/agentd/commit/6c13a11c16c96339d2b60015eb37ddba35dd1bfb) Thanks [@nuynait](https://github.com/nuynait)! - Fix `*/N * * * *` cron schedules by using launchd's `StartInterval` instead of `StartCalendarInterval`, which has no step syntax support. Previously, step expressions like `*/5` caused `NaN` in plists (silent hourly fallback) and `null` in task JSON (corrupt files).
+
 ## 0.3.0
 
 ### Minor Changes
