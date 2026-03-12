@@ -47,7 +47,10 @@ export const generatePlist = (
   logPath: string,
   pathEnv: string,
 ): string => {
-  const intervalXml = calendarIntervalXml(toCalendarIntervals(task.schedule));
+  const intervalXml =
+    task.schedule._tag === "Interval"
+      ? `  <key>StartInterval</key>\n  <integer>${task.schedule.seconds}</integer>`
+      : calendarIntervalXml(toCalendarIntervals(task.schedule));
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

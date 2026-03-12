@@ -12,6 +12,10 @@ export const ScheduleSchema = Schema.TaggedUnion({
     dayOfWeek: Schema.Union([Schema.Number, Schema.String]),
     raw: Schema.String,
   },
+  Interval: {
+    seconds: Schema.Number,
+    raw: Schema.String,
+  },
   Oneshot: {
     at: Schema.String,
     raw: Schema.String,
@@ -20,6 +24,7 @@ export const ScheduleSchema = Schema.TaggedUnion({
 
 export type Schedule = typeof ScheduleSchema.Type;
 export type CronSchedule = Extract<Schedule, { readonly _tag: "Cron" }>;
+export type IntervalSchedule = Extract<Schedule, { readonly _tag: "Interval" }>;
 export type OneshotSchedule = Extract<Schedule, { readonly _tag: "Oneshot" }>;
 
 const DAY_NAMES: Record<string, number> = {
@@ -45,6 +50,7 @@ const EVERY_WEEKDAY_AT_PATTERN = /^every\s+weekday\s+at\s+(\d{1,2})(?::(\d{2}))?
 const EVERY_NAMED_DAY_PATTERN =
   /^every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i;
 const TOMORROW_AT_PATTERN = /^tomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i;
+const STEP_MINUTE_CRON_PATTERN = /^\*\/(\d+)\s+\*\s+\*\s+\*\s+\*$/;
 const CRON_PATTERN = /^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/;
 
 const parseTime = (
@@ -163,6 +169,19 @@ export const parse = Effect.fn("Schedule.parse")(function* (input: string, now: 
       return Option.some({ _tag: "Oneshot" as const, at: at.toISOString(), raw: trimmed });
     }
 
+    // "*/N * * * *" — every N minutes via StartInterval
+    const stepMatch = trimmed.match(STEP_MINUTE_CRON_PATTERN);
+    if (stepMatch !== null) {
+      const minutes = parseInt(stepMatch[1]!, 10);
+      if (minutes > 0) {
+        return Option.some({
+          _tag: "Interval" as const,
+          seconds: minutes * 60,
+          raw: trimmed,
+        });
+      }
+    }
+
     // 5-field cron
     const cronMatch = trimmed.match(CRON_PATTERN);
     if (cronMatch !== null) {
@@ -194,6 +213,10 @@ export const describe = (schedule: Schedule): string => {
   if (schedule._tag === "Oneshot") {
     return `once at ${new Date(schedule.at).toLocaleString()}`;
   }
+  if (schedule._tag === "Interval") {
+    const minutes = schedule.seconds / 60;
+    return minutes === 1 ? "every minute" : `every ${minutes} minutes`;
+  }
   const { minute, hour, dayOfWeek } = schedule;
   const timeStr =
     hour === "*"
@@ -208,7 +231,9 @@ export const describe = (schedule: Schedule): string => {
   return `cron: ${schedule.raw}`;
 };
 
-export const toCalendarIntervals = (schedule: Schedule): ReadonlyArray<Record<string, number>> => {
+export const toCalendarIntervals = (
+  schedule: CronSchedule | OneshotSchedule,
+): ReadonlyArray<Record<string, number>> => {
   if (schedule._tag === "Oneshot") {
     const d = new Date(schedule.at);
     return [

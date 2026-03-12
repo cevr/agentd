@@ -174,6 +174,26 @@ describe("generatePlist", () => {
     expect(plist).toContain("<key>Minute</key>");
   });
 
+  test("generates StartInterval for step minute cron", () => {
+    const plist = generatePlist(
+      makeTask({
+        schedule: {
+          _tag: "Interval",
+          seconds: 300,
+          raw: "*/5 * * * *",
+        },
+      }),
+      "/bin/agentd",
+      "/Users/test",
+      "/tmp/log",
+      "/usr/bin",
+    );
+
+    expect(plist).toContain("<key>StartInterval</key>");
+    expect(plist).toContain("<integer>300</integer>");
+    expect(plist).not.toContain("<key>StartCalendarInterval</key>");
+  });
+
   test("sets KeepAlive to false", () => {
     const plist = generatePlist(makeTask(), "/bin/agentd", "/Users/test", "/tmp/log", "/usr/bin");
 

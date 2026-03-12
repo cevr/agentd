@@ -111,6 +111,31 @@ describe("Schedule.parse", () => {
         expect(s.hour).toBe("*");
       }
     });
+
+    test("*/N minute step expression produces Interval", () => {
+      const s = run(Schedule.parse("*/5 * * * *", now));
+      expect(s._tag).toBe("Interval");
+      if (s._tag === "Interval") {
+        expect(s.seconds).toBe(300);
+      }
+    });
+
+    test("*/1 minute step expression produces Interval", () => {
+      const s = run(Schedule.parse("*/1 * * * *", now));
+      expect(s._tag).toBe("Interval");
+      if (s._tag === "Interval") {
+        expect(s.seconds).toBe(60);
+      }
+    });
+
+    test("step expression in non-minute field stays Cron", () => {
+      const s = run(Schedule.parse("0 */2 * * *", now));
+      expect(s._tag).toBe("Cron");
+      if (s._tag === "Cron") {
+        expect(s.minute).toBe(0);
+        expect(s.hour).toBe("*");
+      }
+    });
   });
 
   test("invalid input fails", () => {
@@ -153,6 +178,24 @@ describe("Schedule.describe", () => {
       raw: "every day at 9:00",
     });
     expect(desc).toBe("daily at 09:00");
+  });
+
+  test("interval every minute", () => {
+    const desc = Schedule.describe({
+      _tag: "Interval",
+      seconds: 60,
+      raw: "*/1 * * * *",
+    });
+    expect(desc).toBe("every minute");
+  });
+
+  test("interval every N minutes", () => {
+    const desc = Schedule.describe({
+      _tag: "Interval",
+      seconds: 300,
+      raw: "*/5 * * * *",
+    });
+    expect(desc).toBe("every 5 minutes");
   });
 
   test("weekday cron", () => {
