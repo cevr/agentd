@@ -26,6 +26,10 @@ agentd "run tests and fix failures" -s "0 9 * * 1-5"
 agentd "review open issues" -p codex -s "in 30 minutes"
 ```
 
+## Mac Companion App
+
+[agentd-mac-companion](https://github.com/nuynait/agentd-mac-companion) — a macOS menu bar app for managing agentd tasks with a native UI.
+
 ## Development
 
 ```bash
