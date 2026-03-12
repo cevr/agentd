@@ -65,7 +65,7 @@ const parseTime = (
 };
 
 const parseNumericField = (field: string): number | "*" => {
-  if (field === "*") return "*";
+  if (field === "*" || field.startsWith("*/")) return "*";
   return parseInt(field, 10);
 };
 
